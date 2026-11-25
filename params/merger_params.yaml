@@ -1,0 +1,93 @@
+# =============================================================================
+# merger_params.yaml  —  dual_lidar_merger configuration
+# =============================================================================
+
+dual_lidar_merger:
+  ros__parameters:
+
+    # ── Input / Output topics ─────────────────────────────────────────────
+    scan1_topic:   "/scan"          # Topic from LiDAR 1 (front)
+    scan2_topic:   "/scan2"         # Topic from LiDAR 2 (rear)
+    output_topic:  "/scan_merged"   # Merged output topic
+
+    # ── TF Frames ─────────────────────────────────────────────────────────
+    # target_frame : all scan points are projected into this frame for merging
+    # output_frame : frame_id stamped on /scan_merged
+    #                leave empty ("") to reuse target_frame (default)
+    target_frame:  "base_link"
+    scan1_frame:   "laser_frame"
+    scan2_frame:   "laser_frame2"
+    output_frame:  ""
+
+    # ── Output scan geometry ──────────────────────────────────────────────
+    angle_min:        -3.14159265    # rad  (-180°)
+    angle_max:         3.14159265    # rad  (+180°)
+    angle_increment:   0.00872664626 # rad  (~0.5° resolution)
+    range_min:         0.12          # m    discard closer readings
+    range_max:         8.0           # m    discard farther readings
+
+    # ── Overlap handling ──────────────────────────────────────────────────
+    # When both LiDARs see the same angular bin:
+    #   nearest   — keep closest point  (best for obstacle avoidance)
+    #   farthest  — keep farthest point
+    #   average   — arithmetic mean
+    overlap_mode: "nearest"
+
+    # ── Staleness threshold ───────────────────────────────────────────────
+    max_scan_age: 0.5               # s  — discard scans older than this
+
+    # ── Output-space angle mask ───────────────────────────────────────────
+    # Flat list of [min_deg, max_deg] pairs to zero out in the merged output.
+    # Use [0.0] (single value) to disable — bare [] crashes ROS 2 type inference.
+    # Example — silence chassis reflections at ±90°:
+    #   mask_angles: [85.0, 95.0,  -95.0, -85.0]
+    mask_angles: [0.0]
+
+    # ── Range fill value ──────────────────────────────────────────────────
+    invalid_range_is_inf: true      # true = +inf (REP-117), false = 0
+
+    # ── Body / chassis filter ─────────────────────────────────────────────
+    #
+    # Removes points on the robot body (standoffs, wires, cable ties, etc.)
+    # from BOTH LiDARs before they are merged into /scan_merged.
+    #
+    # How it works
+    # ────────────
+    # After each scan point is projected into base_link coordinates, its XY
+    # position is tested against the box below.  Points inside are discarded.
+    # This happens inside the projection loop — no extra topic, no copy, no
+    # latency added.
+    #
+    # Tuning guide
+    # ────────────
+    # 1. Set body_filter_enabled: true and use the default box (chassis half-
+    #    extents from your URDF).
+    # 2. In RViz, add /scan_merged and set Fixed Frame to base_link.
+    # 3. Drive slowly and watch for ghost points inside the robot footprint.
+    # 4. Increase body_filter_padding in 5 mm steps until they disappear.
+    # 5. Check that real nearby obstacles (walls, objects) are NOT removed.
+    #
+    # Your chassis: 432 mm (x) x 288 mm (y), base_link at centre.
+    # Half-extents: x = ±0.216 m,  y = ±0.144 m
+    #
+    body_filter_enabled:  true     # set true to activate
+
+    # Reference frame for the box coordinates (almost always base_link)
+    body_filter_frame:    "base_footprint"
+
+    # Box edges in metres, relative to body_filter_frame origin
+    # +X = forward,  -X = rear
+    # +Y = left,     -Y = right
+    body_filter_x_min:   -0.216    # rear  edge of chassis
+    body_filter_x_max:    0.216    # front edge of chassis
+    body_filter_y_min:   -0.144    # right edge of chassis
+    body_filter_y_max:    0.144    # left  edge of chassis
+
+    # Padding added uniformly to all four sides (metres).
+    # Increase this to catch wires / standoffs that overhang the chassis edge.
+    # Start at 0.02 (2 cm) and tune upward.
+    body_filter_padding:  0.02
+
+    # ── Diagnostics ───────────────────────────────────────────────────────
+    publish_diagnostics: true       # /merger/diagnostics every 5 s
+    # Reports: scan1_rx, scan2_rx, merged, dropped, body_filtered_pts

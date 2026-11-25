@@ -1,0 +1,34 @@
+# =============================================================================
+# lidar1_params.yaml  —  YDLidar X2  (Front LiDAR, port /dev/ttyUSB0)
+# Publishes to /scan  (frame: laser_frame)
+# =============================================================================
+ydlidar_ros2_driver_node:
+  ros__parameters:
+    port: /dev/ttyUSB1
+    frame_id: laser_frame
+    ignore_array: "[]"
+    baudrate: 115200
+    lidar_type: 1
+    device_type: 0
+    sample_rate: 4
+    abnormal_check_count: 4
+    fixed_resolution: true
+    reversion: false 
+    inverted: true 
+    auto_reconnect: true
+    isSingleChannel: true
+    intensity_bit: 0
+    intensity: false
+    support_motor_dtr: true
+    angle_max: 180.0
+    angle_min: -180.0
+    range_max: 8.0
+    range_min: 0.12
+    frequency: 8.0
+    invalid_range_is_inf: true
+    use_lidar_timestamp: false
+    debug: false
+    
+    enable_angle_blocking: false
+    blocked_angle_min: 0.0
+    blocked_angle_max: 0.0
