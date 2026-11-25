@@ -70,9 +70,9 @@ dual_lidar_merger:
     # Your chassis: 432 mm (x) x 288 mm (y), base_link at centre.
     # Half-extents: x = ±0.216 m,  y = ±0.144 m
     #
-    body_filter_enabled:  true     # set true to activate
+    body_filter_enabled:  true     # set false to disable
 
-    # Reference frame for the box coordinates (almost always base_link)
+    # Reference frame for the box coordinates (base_link or base_footprint)
     body_filter_frame:    "base_footprint"
 
     # Box edges in metres, relative to body_filter_frame origin

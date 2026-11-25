@@ -32,6 +32,7 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
+#include <cinttypes>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -188,8 +189,12 @@ public:
     }
 
     // ── Subscribers ───────────────────────────────────────────────────────
+    // Sensor-data (best-effort) QoS on the inputs: compatible with drivers that
+    // publish either reliable or best-effort.
+    const auto sub_qos = rclcpp::SensorDataQoS();
+
     sub1_ = create_subscription<sensor_msgs::msg::LaserScan>(
-      scan1_topic_, qos,
+      scan1_topic_, sub_qos,
       [this](sensor_msgs::msg::LaserScan::SharedPtr msg) {
         std::lock_guard<std::mutex> lk(mutex_);
         scan1_ = msg;
@@ -198,7 +203,7 @@ public:
       });
 
     sub2_ = create_subscription<sensor_msgs::msg::LaserScan>(
-      scan2_topic_, qos,
+      scan2_topic_, sub_qos,
       [this](sensor_msgs::msg::LaserScan::SharedPtr msg) {
         std::lock_guard<std::mutex> lk(mutex_);
         scan2_ = msg;
@@ -316,10 +321,11 @@ private:
     }
 
     const auto & q = tf_to_target.transform.rotation;
-    float scan_yaw = std::atan2(
+    const float scan_yaw = std::atan2(
       2.f * (q.w * q.z + q.x * q.y),
       1.f - 2.f * (q.y * q.y + q.z * q.z));
-    (void)scan_yaw;  // translation is sufficient for 2-D; kept for clarity
+    const float s_cos = std::cos(scan_yaw);
+    const float s_sin = std::sin(scan_yaw);
     float tx = static_cast<float>(tf_to_target.transform.translation.x);
     float ty = static_cast<float>(tf_to_target.transform.translation.y);
 
@@ -357,9 +363,14 @@ private:
 
       float angle_local = scan->angle_min + static_cast<float>(i) * scan->angle_increment;
 
-      // Project into target_frame (2-D: LiDARs are coplanar, z ignored)
-      float px = r * std::cos(angle_local) + tx;
-      float py = r * std::sin(angle_local) + ty;
+      // Point in the LiDAR's own frame
+      const float lx = r * std::cos(angle_local);
+      const float ly = r * std::sin(angle_local);
+
+      // Rotate by the mount yaw, then translate into target_frame
+      // (2-D: LiDARs are coplanar, z ignored)
+      float px = s_cos * lx - s_sin * ly + tx;
+      float py = s_sin * lx + s_cos * ly + ty;
 
       // Body filter — discard points inside the chassis box
       if (body_filter_enabled_) {
@@ -460,11 +471,12 @@ private:
 
   void publish_diagnostics()
   {
+    std::lock_guard<std::mutex> lk(mutex_);
     std_msgs::msg::String msg;
     char buf[320];
     snprintf(buf, sizeof(buf),
-      "DualLidarMerger | scan1_rx=%lu  scan2_rx=%lu  merged=%lu  "
-      "dropped=%lu  body_filtered_pts=%lu",
+      "DualLidarMerger | scan1_rx=%" PRIu64 "  scan2_rx=%" PRIu64
+      "  merged=%" PRIu64 "  dropped=%" PRIu64 "  body_filtered_pts=%" PRIu64,
       scan1_count_, scan2_count_, merge_count_,
       drop_count_, body_filtered_count_);
     msg.data = buf;

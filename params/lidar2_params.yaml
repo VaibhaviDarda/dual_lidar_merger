@@ -1,5 +1,5 @@
 # =============================================================================
-# lidar2_params.yaml  —  YDLidar X2  (Rear LiDAR, port /dev/ttyUSB1)
+# lidar2_params.yaml  —  YDLidar X2  (LiDAR 2, default port /dev/ttyUSB0)
 # Publishes to /scan2  (frame: laser_frame2)
 # =============================================================================
 ydlidar_ros2_driver_node_2:
